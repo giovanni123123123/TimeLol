@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central do Time · Evolução LoL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1a21;--sf:#14252e;--sf2:#1b313c;--ln:#2a4552;--tx:#e9e5d6;--mu:#8fa6ad;--gold:#d2a94b;--teal:#3fb7a8;--red:#d9605b;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 Barlow,system-ui,sans-serif}
+h1,h2,h3{font-family:'Barlow Condensed',Impact,sans-serif;margin:0;letter-spacing:.02em}
+h1{font-size:2.2rem;color:var(--gold)}h2{font-size:1.5rem;margin-bottom:.75rem}h3{font-size:1.2rem}
+header{padding:1.25rem 1rem .5rem;max-width:1000px;margin:auto}
+header p{margin:0;color:var(--mu)}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--ln);display:flex;gap:.25rem;overflow-x:auto;padding:.5rem 1rem;max-width:1000px;margin:auto}
+nav button{background:none;border:0;color:var(--mu);font:600 1rem Barlow;padding:.5rem .9rem;border-radius:6px;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--sf2);color:var(--gold)}
+nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+main{max-width:1000px;margin:auto;padding:1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:1rem}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:end;margin-bottom:1rem}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mu);gap:.2rem}
+input,select{background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:.5rem .6rem;font:inherit;min-width:0}
+.btn{background:var(--gold);color:#1a1405;border:0;border-radius:6px;padding:.55rem 1rem;font:600 1rem Barlow;cursor:pointer}
+.btn.ghost{background:var(--sf2);color:var(--tx)}.btn.sm{padding:.25rem .6rem;font-size:.85rem}
+.x{background:none;border:0;color:var(--mu);cursor:pointer;font-size:1.1rem}.x:hover{color:var(--red)}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:.35rem 0}
+.bar i{display:block;height:100%;background:var(--teal)}.bar i.g{background:var(--gold)}
+.big{font:700 2.4rem/1 'Barlow Condensed';color:var(--tx)}
+.mu{color:var(--mu);font-size:.9rem}.up{color:var(--teal)}.dn{color:var(--red)}
+.tag{display:inline-block;background:var(--sf2);border-radius:4px;padding:0 .45rem;font-size:.8rem;color:var(--gold)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:.5rem;border-bottom:1px solid var(--ln);text-align:left;vertical-align:middle}
+th{font-weight:600;color:var(--mu);font-size:.85rem}
+td input[type=checkbox]{width:22px;height:22px;accent-color:var(--teal)}
+.empty{text-align:center;color:var(--mu);padding:2rem 1rem}
+.split{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+svg{width:100%;height:auto;display:block}
+.lg{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.5rem;font-size:.9rem}
+.lg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:.35rem}
+.me{margin-left:auto;display:flex;align-items:center;gap:.6rem;color:var(--mu);white-space:nowrap;padding-left:1rem}.auth{max-width:380px;margin:2rem auto}.auth form{display:grid;gap:.8rem;margin-bottom:1rem}.err{color:var(--red)}.link{background:none;border:0;color:var(--teal);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
+</style>
+</head>
+<body>
+<header><h1>Central do Time</h1><p>Metas, treino diário e evolução, num só lugar.</p></header>
+<nav id="nav"></nav>
+<main id="app"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ===== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase (Project Settings > API) ===== */
+const SUPABASE_URL="https://yicbfdvfwrxukzwnqjmm.supabase.co",SUPABASE_KEY="sb_publishable_LJfqGdg3kcBdSmxAy3Dn6Q_3hRt2oRg";
+/* ================================================================================================ */
+const CONFIGURED=!SUPABASE_URL.includes("SEU-PROJETO");
+const sb=CONFIGURED?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+const COLORS=["#d2a94b","#3fb7a8","#d9605b","#7aa7ff","#c28bff","#9bd36b","#ff9f5a"];
+const POS=["Top","Jungle","Mid","ADC","Support","Reserva"];
+let S={players:[],tasks:[],checks:{},goals:[],logs:[]},me=null,session=null,tab="painel",day=today(),mode="in",msg="";
+
+function today(){return new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)}
+function addDays(d,n){const t=new Date(d+"T12:00:00");t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function fmt(d){return d.split("-").reverse().slice(0,2).join("/")}
+const pname=id=>(S.players.find(p=>p.id===id)||{name:"?"}).name;
+const col=id=>COLORS[Math.max(0,S.players.findIndex(p=>p.id===id))%COLORS.length];
+const isP=()=>!!me&&me.role==="president";
+const vis=()=>isP()?S.players:(me?[me]:[]);
+const tabs=()=>isP()?[["painel","Painel do presidente"],["treino","Treino diário"],["metas","Metas"],["evolucao","Evolução"],["time","Time"]]:[["painel","Meu painel"],["treino","Treino diário"],["metas","Metas"],["evolucao","Evolução"]];
+
+/* ---------- dados ---------- */
+async function loadAll(){
+  const r=await Promise.all(["profiles","tasks","checks","goals","logs"].map(n=>sb.from(n).select("*")));
+  const e=r.find(x=>x.error);if(e){alert("Erro ao carregar: "+e.error.message);return}
+  const [p,t,c,g,l]=r.map(x=>x.data);
+  S.players=p.sort((a,b)=>a.name.localeCompare(b.name));S.tasks=t.sort((a,b)=>a.id-b.id);
+  S.checks={};c.forEach(x=>S.checks[x.day+"|"+x.user_id+"|"+x.task_id]=1);
+  S.goals=g.map(x=>({...x,pid:x.user_id,due:x.due||""}));
+  S.logs=l.map(x=>({...x,pid:x.user_id,date:x.day}));
+  me=S.players.find(x=>x.id===session.user.id)||null;
+}
+async function run(q){const{error}=await q;if(error){alert("Erro: "+error.message);return false}await loadAll();render();return true}
+
+/* ---------- cálculos ---------- */
+const done=(pid,d)=>S.tasks.filter(t=>S.checks[d+"|"+pid+"|"+t.id]).length;
+function pct7(pid){if(!S.tasks.length)return 0;let n=0;for(let i=0;i<7;i++)n+=done(pid,addDays(today(),-i));return Math.round(100*n/(7*S.tasks.length))}
+function streak(pid){if(!S.tasks.length)return 0;let d=today(),n=0;if(done(pid,d)<S.tasks.length)d=addDays(d,-1);while(done(pid,d)===S.tasks.length){n++;d=addDays(d,-1)}return n}
+const goalPct=g=>Math.max(0,Math.min(100,Math.round(100*g.current/g.target)));
+function goalsAvg(pid){const g=S.goals.filter(x=>x.pid===pid);return g.length?Math.round(g.reduce((a,x)=>a+goalPct(x),0)/g.length):null}
+function logsOf(pid){return S.logs.filter(l=>l.pid===pid).sort((a,b)=>a.date.localeCompare(b.date))}
+
+/* ---------- ações ---------- */
+function go(t){tab=t;render()}
+function toggle(pid,tid){const on=S.checks[day+"|"+pid+"|"+tid];run(on?sb.from("checks").delete().match({user_id:pid,day:day,task_id:tid}):sb.from("checks").insert({user_id:pid,day:day,task_id:tid}))}
+function setDay(v){if(v){day=v;render()}}
+function addTask(e){e.preventDefault();run(sb.from("tasks").insert({title:e.target.t.value.trim()}))}
+function delTask(id){if(confirm("Remover esta tarefa? Os checks dela também serão apagados."))run(sb.from("tasks").delete().eq("id",id))}
+function addGoal(e){e.preventDefault();const f=e.target;run(sb.from("goals").insert({user_id:f.pid?f.pid.value:me.id,title:f.title.value.trim(),target:+f.target.value,current:+f.current.value||0,unit:f.unit.value.trim(),due:f.due.value||null}))}
+function setGoal(id,v){run(sb.from("goals").update({current:+v||0}).eq("id",id))}
+function delGoal(id){run(sb.from("goals").delete().eq("id",id))}
+function addLog(e){e.preventDefault();const f=e.target,n=x=>f[x].value===""?null:+f[x].value;run(sb.from("logs").insert({user_id:f.pid?f.pid.value:me.id,day:f.date.value,lp:+f.lp.value,wr:n("wr"),csm:n("csm"),deaths:n("deaths")}))}
+function delLog(id){run(sb.from("logs").delete().eq("id",id))}
+function delPlayer(id){if(confirm("Remover este jogador e todos os dados dele?"))run(sb.from("profiles").delete().eq("id",id))}
+
+async function auth(e){
+  e.preventDefault();msg="";const f=e.target;
+  const r=await sb.auth.signInWithPassword({email:f.user.value.trim().toLowerCase()+"@gayney.app",password:f.pw.value});
+  if(r.error){msg="Usuário ou senha incorretos.";return render()}
+  session=r.data.session;await loadAll();tab="painel";render();
+}
+async function logout(){await sb.auth.signOut();session=null;me=null;S={players:[],tasks:[],checks:{},goals:[],logs:[]};mode="in";render()}
+function setMode(m){mode=m;msg="";render()}
+
+/* ---------- telas ---------- */
+const playerOpts=()=>S.players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+const pidField=()=>isP()?`<label>Jogador<select name="pid">${playerOpts()}</select></label>`:"";
+const needPlayers=()=>`<div class="empty card">Nenhum jogador cadastrado ainda. Rode o script de criação de contas.</div>`;
+
+function vSetup(){return `<div class="card auth"><h2>Falta ligar o Supabase</h2><p class="mu">Abra o <b>index.html</b>, cole a URL e a chave anon do seu projeto no topo do script e rode o <b>setup.sql</b> no SQL Editor do Supabase. Passo a passo no README da conversa.</p></div>`}
+
+function vLogin(){
+  return `<div class="card auth"><h2>Entrar</h2><form onsubmit="auth(event)">
+  <label>Usuário<input name="user" required autocomplete="username" autocapitalize="none"></label>
+  <label>Senha<input name="pw" type="password" required autocomplete="current-password"></label>
+  ${msg?`<div class="err" role="alert">${esc(msg)}</div>`:""}
+  <button class="btn">Entrar</button></form></div>`;
+}
+
+function vPainel(){
+  const V=vis();if(!V.length)return needPlayers();
+  const team=Math.round(V.reduce((a,p)=>a+pct7(p.id),0)/V.length);
+  const cards=V.map(p=>{
+    const L=logsOf(p.id),last=L[L.length-1],prev=L[L.length-2],ga=goalsAvg(p.id),t=pct7(p.id),d=last&&prev?last.lp-prev.lp:null;
+    return `<div class="card"><div class="split"><h3>${esc(p.name)}</h3><span class="tag">${esc(p.position)}</span></div>
+    <div class="mu" style="margin-top:.6rem">Treino nos últimos 7 dias</div>
+    <div class="big">${t}%</div><div class="bar"><i style="width:${t}%"></i></div>
+    <div class="mu">Sequência: <b>${streak(p.id)}</b> dia(s) completos</div>
+    <div class="mu" style="margin-top:.6rem">Metas (média)</div>
+    ${ga===null?'<div class="mu">Sem metas definidas</div>':`<div class="bar"><i class="g" style="width:${ga}%"></i></div><div>${ga}% concluído</div>`}
+    <div class="mu" style="margin-top:.6rem">Último PDL registrado</div>
+    ${last?`<div><b>${last.lp}</b> em ${fmt(last.date)} ${d!==null?`<span class="${d>=0?"up":"dn"}">(${d>=0?"+":""}${d})</span>`:""}</div>`:'<div class="mu">Sem registros</div>'}</div>`}).join("");
+  return `<h2>${isP()?"Visão geral do time":"Meu painel"}</h2>
+  ${isP()?`<div class="card" style="margin-bottom:1rem"><div class="mu">Dedicação média do time na semana</div><div class="big">${team}%</div><div class="bar"><i style="width:${team}%"></i></div></div>`:""}
+  <div class="grid">${cards}</div>`;
+}
+
+function vTreino(){
+  const V=vis();if(!V.length)return needPlayers();
+  const head=V.map(p=>`<th>${esc(p.name)}</th>`).join("");
+  const rows=S.tasks.map(t=>`<tr><td>${esc(t.title)}</td>${V.map(p=>`<td><input type="checkbox" aria-label="${esc(p.name)}: ${esc(t.title)}" ${S.checks[day+"|"+p.id+"|"+t.id]?"checked":""} onchange="toggle('${p.id}',${t.id})"></td>`).join("")}</tr>`).join("")||`<tr><td colspan="${V.length+1}" class="mu">O presidente ainda não definiu tarefas de treino.</td></tr>`;
+  const tot=V.map(p=>`<td>${done(p.id,day)}/${S.tasks.length}</td>`).join("");
+  return `<h2>Treino diário</h2>
+  <div class="row"><label>Dia<input type="date" value="${day}" max="${today()}" onchange="setDay(this.value)"></label><button class="btn ghost" onclick="setDay(today())">Hoje</button></div>
+  <div class="card scroll"><table><tr><th>Tarefa</th>${head}</tr>${rows}<tr><th>Concluídas</th>${tot}</tr></table></div>
+  ${isP()?`<h3 style="margin-top:1.5rem">Tarefas do treino</h3>
+  <form class="row" onsubmit="addTask(event)" style="margin-top:.5rem"><label style="flex:1">Nova tarefa<input name="t" required></label><button class="btn">Adicionar tarefa</button></form>
+  ${S.tasks.map(t=>`<div class="split card" style="margin-bottom:.4rem;padding:.4rem .8rem"><span>${esc(t.title)}</span><button class="x" aria-label="Remover tarefa" onclick="delTask(${t.id})">✕</button></div>`).join("")}`:""}`;
+}
+
+function vMetas(){
+  const list=S.goals.length?S.goals.map(g=>{const p=goalPct(g),late=g.due&&g.due<today()&&p<100;
+    return `<div class="card"><div class="split"><div><b>${esc(g.title)}</b><div class="mu">${esc(pname(g.pid))}${g.due?` · prazo ${g.due.split("-").reverse().join("/")}`:""}${late?' · <span class="dn">atrasada</span>':""}</div></div><button class="x" aria-label="Remover meta" onclick="delGoal(${g.id})">✕</button></div>
+    <div class="bar"><i class="${p>=100?"":"g"}" style="width:${p}%"></i></div>
+    <div class="split"><span>${p}%</span><label style="flex-direction:row;align-items:center">Atual <input type="number" step="any" style="width:90px" value="${g.current}" onchange="setGoal(${g.id},this.value)"> / ${g.target} ${esc(g.unit||"")}</label></div></div>`}).join(""):`<div class="empty card">Nenhuma meta ainda. Crie a primeira acima.</div>`;
+  return `<h2>Metas</h2>
+  <form class="row" onsubmit="addGoal(event)">${pidField()}
+  <label style="flex:1;min-width:180px">Meta<input name="title" placeholder="Ex.: Chegar a 8 de CS/min" required></label>
+  <label>Valor alvo<input name="target" type="number" step="any" min="0.01" required style="width:100px"></label>
+  <label>Atual<input name="current" type="number" step="any" style="width:90px"></label>
+  <label>Unidade<input name="unit" placeholder="CS/min" style="width:100px"></label>
+  <label>Prazo<input name="due" type="date"></label><button class="btn">Criar meta</button></form>
+  <div class="grid">${list}</div>`;
+}
+
+function chart(){
+  const V=vis(),dates=[...new Set(S.logs.map(l=>l.date))].sort();if(!dates.length)return "";
+  const vals=S.logs.map(l=>l.lp),mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)||10;
+  const W=640,H=260,L=44,R=12,T=12,B=28;
+  const X=d=>L+(dates.length===1?(W-L-R)/2:(dates.indexOf(d)/(dates.length-1))*(W-L-R));
+  const Y=v=>T+(1-(v-(mn-pad*.1))/(pad*1.2))*(H-T-B);
+  let g="";
+  for(let i=0;i<=3;i++){const v=Math.round(mn+(pad*i)/3),y=Y(v);g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#2a4552"/><text x="${L-6}" y="${y+4}" fill="#8fa6ad" font-size="11" text-anchor="end">${v}</text>`}
+  const step=Math.ceil(dates.length/6);
+  dates.forEach((d,i)=>{if(i%step===0)g+=`<text x="${X(d)}" y="${H-8}" fill="#8fa6ad" font-size="11" text-anchor="middle">${fmt(d)}</text>`});
+  V.forEach(p=>{const L2=logsOf(p.id);if(!L2.length)return;const c=col(p.id);
+    g+=`<polyline fill="none" stroke="${c}" stroke-width="2.5" points="${L2.map(l=>X(l.date)+","+Y(l.lp)).join(" ")}"/>`+L2.map(l=>`<circle cx="${X(l.date)}" cy="${Y(l.lp)}" r="3.5" fill="${c}"/>`).join("")});
+  const lg=V.map(p=>`<span style="--c:${col(p.id)}">${esc(p.name)}</span>`).join("");
+  return `<div class="card" style="margin-bottom:1rem"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de PDL ao longo do tempo">${g}</svg><div class="lg">${lg}</div></div>`;
+}
+
+function vEvolucao(){
+  const rows=[...S.logs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30).map(l=>`<tr><td>${fmt(l.date)}</td><td>${esc(pname(l.pid))}</td><td>${l.lp}</td><td>${l.wr??"–"}</td><td>${l.csm??"–"}</td><td>${l.deaths??"–"}</td><td><button class="x" aria-label="Remover registro" onclick="delLog(${l.id})">✕</button></td></tr>`).join("");
+  return `<h2>Evolução</h2>
+  <form class="row" onsubmit="addLog(event)">${pidField()}
+  <label>Data<input name="date" type="date" value="${today()}" required></label>
+  <label>PDL total<input name="lp" type="number" required style="width:100px"></label>
+  <label>Win rate %<input name="wr" type="number" step="any" min="0" max="100" style="width:90px"></label>
+  <label>CS/min<input name="csm" type="number" step="any" min="0" style="width:90px"></label>
+  <label>Mortes/jogo<input name="deaths" type="number" step="any" min="0" style="width:90px"></label>
+  <button class="btn">Registrar</button></form>
+  <p class="mu" style="margin-top:-.5rem">Dica: use um número único para o ranking, como o total de PDL acumulado, para o gráfico fazer sentido.</p>
+  ${S.logs.length?chart()+`<div class="card scroll"><table><tr><th>Data</th><th>Jogador</th><th>PDL</th><th>WR%</th><th>CS/min</th><th>Mortes</th><th></th></tr>${rows}</table></div>`:`<div class="empty card">Sem registros. Faça o primeiro acima.</div>`}`;
+}
+
+function vTime(){
+  return `<h2>Time</h2><div class="grid">${S.players.map(p=>`<div class="card split"><div><b>${esc(p.name)}</b> <span class="tag">${esc(p.position)}</span>${p.role==="president"?' <span class="tag">Presidente</span>':""}</div></div>`).join("")}</div>`;
+}
+
+const $nav=document.getElementById("nav"),$app=document.getElementById("app");
+function render(){
+  if(!CONFIGURED){$nav.innerHTML="";return $app.innerHTML=vSetup()}
+  if(!session){$nav.innerHTML="";return $app.innerHTML=vLogin()}
+  if(!me){$nav.innerHTML="";return $app.innerHTML=`<div class="card auth"><h2>Perfil não encontrado</h2><p class="mu">Seu acesso foi removido do time ou o cadastro não terminou.</p><button class="btn" onclick="logout()">Sair</button></div>`}
+  if(!tabs().some(t=>t[0]===tab))tab="painel";
+  $nav.innerHTML=tabs().map(([k,n])=>`<button class="${k===tab?"on":""}" onclick="go('${k}')">${n}</button>`).join("")+`<div class="me"><span>${esc(me.name)} · ${isP()?"Presidente":"Jogador"}</span><button class="btn ghost sm" onclick="logout()">Sair</button></div>`;
+  $app.innerHTML=({painel:vPainel,treino:vTreino,metas:vMetas,evolucao:vEvolucao,time:vTime})[tab]();
+}
+(async()=>{if(CONFIGURED){const{data}=await sb.auth.getSession();session=data.session;if(session)await loadAll()}render()})();
+
+</script>
+</body>
+</html>
